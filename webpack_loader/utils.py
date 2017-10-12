@@ -1,9 +1,14 @@
+import io
+import os
+
 from django.conf import settings
 
 from .loader import WebpackLoader
 
 
 _loaders = {}
+JS_INLINE = '<script type="text/javascript">{chunk}</script>'
+CSS_INLINE = '<style type="text/css">{chunk}</style>'
 
 
 def get_loader(config_name):
@@ -42,17 +47,39 @@ def get_as_tags(bundle_name, extension=None, config='DEFAULT', attrs=''):
     :return: a list of formatted tags as strings
     '''
 
+    BUNDLE_PATH = os.path.join(settings.STATICFILES_DIRS[0], settings.WEBPACK_LOADER[config]['BUNDLE_DIR_NAME'])
+
     bundle = _get_bundle(bundle_name, extension, config)
     tags = []
+    inline = False
+
+    if not (attrs == '' or attrs[0] == ' '):
+        attrs = ' ' + attrs
+
+    if 'inline' in attrs:
+        parts = attrs.split('inline')
+        attrs = parts[0].rstrip(' ')
+        if parts[-1].split('"')[1] in ("True", "true"):
+            inline = True
+
     for chunk in bundle:
+        path = os.path.join(BUNDLE_PATH, chunk['name'])
         if chunk['name'].endswith(('.js', '.js.gz')):
-            tags.append((
-                '<script type="text/javascript" src="{0}" {1}></script>'
-            ).format(chunk['url'], attrs))
+            if inline and os.path.exists(path):
+                with io.open(path, 'r', encoding='utf-8') as f:
+                    tags.append(JS_INLINE.format(chunk=f.read()))
+            else:
+                tags.append((
+                    '<script src="{0}"{1}></script>'
+                ).format(chunk['url'], attrs))
         elif chunk['name'].endswith(('.css', '.css.gz')):
-            tags.append((
-                '<link type="text/css" href="{0}" rel="stylesheet" {1}/>'
-            ).format(chunk['url'], attrs))
+            if inline and os.path.exists(path):
+                with io.open(path, 'r', encoding='utf-8') as f:
+                    tags.append(CSS_INLINE.format(chunk=f.read()))
+            else:
+                tags.append((
+                    '<link rel="stylesheet" href="{0}"{1} />'
+                ).format(chunk['url'], attrs))
     return tags
 
 
