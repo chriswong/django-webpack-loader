@@ -7,8 +7,8 @@ from .loader import WebpackLoader
 
 
 _loaders = {}
-JS_INLINE = '<script type="text/javascript">{chunk}</script>'
-CSS_INLINE = '<style type="text/css">{chunk}</style>'
+JS_INLINE = '<script>{chunk}</script>'
+CSS_INLINE = '<style>{chunk}</style>'
 
 
 def get_loader(config_name):
